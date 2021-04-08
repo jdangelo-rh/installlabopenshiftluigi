@@ -1,102 +1,113 @@
-## openshift-install-lab
-Primera parte como ROOT en el Bastion
+# openshift-install-lab
 
-sudo -i
-echo ${GUID}
 
-Install AWS CLI
+## Primera parte como ROOT en el Bastion
 
-# Download the latest AWS Command Line Interface
-curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-unzip awscli-bundle.zip
+    sudo -i
+    echo ${GUID}
 
-# Install the AWS CLI into /bin/aws
-./awscli-bundle/install -i /usr/local/aws -b /bin/aws
+### Install AWS CLI
 
-# Validate that the AWS CLI works
-aws --version
+    # Download the latest AWS Command Line Interface
+    curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+    unzip awscli-bundle.zip
 
-# Clean up downloaded files
-rm -rf /root/awscli-bundle /root/awscli-bundle.zip
+    # Install the AWS CLI into /bin/aws
+    ./awscli-bundle/install -i /usr/local/aws -b /bin/aws
 
-OpenShift Version
+    # Validate that the AWS CLI works
+    aws --version
 
-OCP_VERSION=4.6.1
+    # Clean up downloaded files
+    rm -rf /root/awscli-bundle /root/awscli-bundle.zip
+    
 
-OpenShift Installer
+### OpenShift Version
 
-wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OCP_VERSION}/openshift-install-linux-${OCP_VERSION}.tar.gz
-tar zxvf openshift-install-linux-${OCP_VERSION}.tar.gz -C /usr/bin
-rm -f openshift-install-linux-${OCP_VERSION}.tar.gz /usr/bin/README.md
-chmod +x /usr/bin/openshift-install
+    OCP_VERSION=4.6.1
 
-Openshift CLI
+### OpenShift Installer
 
-wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OCP_VERSION}/openshift-client-linux-${OCP_VERSION}.tar.gz
-tar zxvf openshift-client-linux-${OCP_VERSION}.tar.gz -C /usr/bin
-rm -f openshift-client-linux-${OCP_VERSION}.tar.gz /usr/bin/README.md
-chmod +x /usr/bin/oc
+    wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OCP_VERSION}/openshift-install-linux-${OCP_VERSION}.tar.gz
+    tar zxvf openshift-install-linux-${OCP_VERSION}.tar.gz -C /usr/bin
+    rm -f openshift-install-linux-${OCP_VERSION}.tar.gz /usr/bin/README.md
+    chmod +x /usr/bin/openshift-install
 
-Check
 
-ls -l /usr/bin/{oc,openshift-install}
+### Openshift CLI
 
-OC bash completion
+    wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OCP_VERSION}/openshift-client-linux-${OCP_VERSION}.tar.gz
+    tar zxvf openshift-client-linux-${OCP_VERSION}.tar.gz -C /usr/bin
+    rm -f openshift-client-linux-${OCP_VERSION}.tar.gz /usr/bin/README.md
+    chmod +x /usr/bin/oc
 
-oc completion bash >/etc/bash_completion.d/openshift
+### Check
 
-Ctrl+d or exit
+    ls -l /usr/bin/{oc,openshift-install}
 
-Segunda parte sin ROOT
-AWS credentials
+### OC bash completion
+
+    oc completion bash >/etc/bash_completion.d/openshift
+
+    Ctrl+d or exit
+    
+## Segunda parte sin ROOT
+
+### AWS credentials
 
 Create AWS credentials file
 
-export AWSKEY=<YOURACCESSKEY>
-export AWSSECRETKEY=<YOURSECRETKEY>
+    export AWSKEY=<YOURACCESSKEY>
+    export AWSSECRETKEY=<YOURSECRETKEY>
+    
+    export REGION=us-east-2
 
-export REGION=us-east-2
+    mkdir $HOME/.aws
+    cat << EOF >>  $HOME/.aws/credentials
+    [default]
+    aws_access_key_id = ${AWSKEY}
+    aws_secret_access_key = ${AWSSECRETKEY}
+    region = $REGION
+    EOF
 
-mkdir $HOME/.aws
-cat << EOF >>  $HOME/.aws/credentials
-[default]
-aws_access_key_id = ${AWSKEY}
-aws_secret_access_key = ${AWSSECRETKEY}
-region = $REGION
-EOF
 
 And test it ...
 
-aws sts get-caller-identity
+    aws sts get-caller-identity
+    
+    
 
-Create SSH key
+### Create SSH key
 
-ssh-keygen -f ~/.ssh/cluster-${GUID}-key -N ''
+    ssh-keygen -f ~/.ssh/cluster-${GUID}-key -N ''
 
-Install OCP
 
-openshift-install create cluster --dir $HOME/cluster-${GUID}
 
-Example answers:
+### Install OCP
 
-    SSH Public Key: $HOME/cluster-${GUID}/.ssh/cluster-492d-key.pub
-    Platform: aws
-    Region: us-east-2
-    sandbox392.opentlc.com
-    Cluster Name: cluster-492d
-    Pull Secret: Paste your pull secret here
+    openshift-install create cluster --dir $HOME/cluster-${GUID}
+    
+ Example answers:
+ - SSH Public Key: $HOME/cluster-${GUID}/.ssh/cluster-492d-key.pub
+ - Platform: aws
+ - Region: us-east-2
+ - sandbox392.opentlc.com
+ - Cluster Name: cluster-492d
+ - Pull Secret: *Paste your pull secret here*
+    
+    
+## Deploy OCS
 
-Deploy OCS
-Create OCS Nodes
+### Create OCS Nodes
 
-export KUBECONFIG=$HOME/cluster-${GUID}/auth/kubeconfig
-CLUSTERID=$(oc get machineset -n openshift-machine-api -o jsonpath='{.items[0].metadata.labels.machine\.openshift\.io/cluster-api-cluster}')
-echo $CLUSTERID
-
-curl -s https://raw.githubusercontent.com/luigiaparicio/openshift-install-lab/main/manifests/machinesets-ocs-us-east-2.yaml| sed -e "s/CLUSTERID/${CLUSTERID}/g" | oc apply -f -
-
-Deploy OCS Operator
-
-    Login as cluster-admin in OpenShift Web Console
-    Operators -> OperatorHub -> Search for OpenShift Container Storage and install it with default settings and remember to "Enable operator recommended cluster monitoring on this namespace"
-    Installed Operators -> OpenShift Container Storage -> Storage Cluster -> Create OCS Cluster Service -> Select your OCS Nodes, disk size, and create
+    export KUBECONFIG=$HOME/cluster-${GUID}/auth/kubeconfig
+    CLUSTERID=$(oc get machineset -n openshift-machine-api -o jsonpath='{.items[0].metadata.labels.machine\.openshift\.io/cluster-api-cluster}')
+    echo $CLUSTERID
+    
+    curl -s https://raw.githubusercontent.com/luigiaparicio/openshift-install-lab/main/manifests/machinesets-ocs-us-east-2.yaml| sed -e "s/CLUSTERID/${CLUSTERID}/g" | oc apply -f -
+    
+ ### Deploy OCS Operator
+ 
+ - Login as cluster-admin in OpenShift Web Console
+ - Operators -> OperatorHub -> Search for OpenShift Container Storage and install it with default settings and remember to "Enable operator recommended cluster monitoring on this namespace"
+ - Installed Operators -> OpenShift Container Storage -> Storage Cluster -> Create OCS Cluster Service -> Select your OCS Nodes, disk size, and create
